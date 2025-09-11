@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Фигури на Лисажу · Lissajous Lab</title>
+<meta name="description" content="Интерактивен генератор на фигури на Лисажу с тъмна/светла тема, BG/EN, trail, фон-патърни и износ PNG/SVG.">
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header>
+<div class="title">
+<div class="logo" aria-hidden="true">LJ</div>
+<div>
+<h1 data-i18n="title">Фигури на Лисажу</h1>
+<div class="subtitle" data-i18n="subtitle">Интерактивен генератор · Параметри, анимация и износ</div>
+</div>
+</div>
+<div class="toolbar" role="toolbar" aria-label="Controls">
+<button id="themeBtn" class="btn ghost" aria-pressed="false" data-i18n="theme">Тъмна/Светла</button>
+<button id="langBtn" class="btn ghost" aria-pressed="false">BG / EN</button>
+<button id="savePNGBtn" class="btn" data-i18n="savePng">Запази PNG</button>
+<button id="savePNGHQBtn" class="btn" title="High-Res PNG" data-i18n="savePngHq">PNG (Hi‑Res)</button>
+<button id="saveSVGBtn" class="btn" data-i18n="saveSvg">Запази SVG</button>
+<button id="randomBtn" class="btn" data-i18n="random">Случайни</button>
+<button id="playBtn" class="btn primary" data-i18n="play">Пусни</button>
+<button id="pauseBtn" class="btn" data-i18n="pause">Пауза</button>
+</div>
+</header>
+
+
+<aside class="panel" aria-label="Parameters">
+<section class="group">
+<h3 data-i18n="freqs">Честоти & амплитуда</h3>
+<div class="field"><label for="a" data-i18n="a">a (честота X)</label><input id="a" type="number" min="1" max="64" step="1" value="3"></div>
+<div class="field"><label for="b" data-i18n="b">b (честота Y)</label><input id="b" type="number" min="1" max="64" step="1" value="2"></div>
+<div class="field"><label for="amp" data-i18n="amp">Амплитуда (%)</label><input id="amp" type="range" min="10" max="95" step="1" value="85"></div>
+<div class="row chips" id="presets"></div>
+</section>
+
+
+<section class="group">
+<h3 data-i18n="phaseAnim">Фаза & анимация</h3>
+<div class="field"><label for="delta" data-i18n="delta">Δ фаза (°)</label><input id="delta" type="number" min="0" max="360" step="1" value="0"></div>
+<div class="field"><label for="omega" data-i18n="omega">Скорост (ω)</label><input id="omega" type="range" min="0" max="2" step="0.01" value="0.6"></div>
+<div class="row">
+<label class="chip"><input id="modeAnimate" type="radio" name="mode" checked> <span data-i18n="modeAnimate">Анимирай траектория</span></label>
+<label class="chip"><input id="modeStatic" type="radio" name="mode"> <span data-i18n="modeStatic">Статично очертаване</span></label>
+</div>
+<div class="field"><label for="res" data-i18n="res">Резолюция (точки)</label><input id="res" type="number" min="200" max="30000" step="100" value="3000"></div>
+<div class="field"><label for="trail" data-i18n="trail">Trail (%)</label><input id="trail" type="range" min="0" max="95" step="1" value="0"></div>
+<div class="field"><label for="blend" data-i18n="blend">Blend режим</label>
+<select id="blend">
+<option value="normal" selected>Normal</option>
+<option value="add">Additive</option>
+</select>
+</div>
+</section>
+
+
+<section class="group">
+<h3 data-i18n="style">Стил и фон</h3>
+<div class="field"><label for="stroke" data-i18n="stroke">Цвят линия</label><input id="stroke" type="color" value="#7ef0c5"></div>
+<div class="field"><label for="width" data-i18n="width">Дебелина</label><input id="width" type="range" min="0.5" max="5" step="0.1" value="1.6"></div>
+<div class="row">
+<label class="chip"><input id="rainbow" type="checkbox"> <span data-i18n="rainbow">Дъга (HSL)</span></label>
+<label class="chip"><input id="showAxes" type="checkbox"> <span data-i18n="axes">Покажи оси</span></label>
+<label class="chip"><input id="square" type="checkbox"> <span data-i18n="square">Квадратна сцена</span></label>
+</div>
+<div class="field"><label for="bgMode" data-i18n="bgMode">Фон</label>
+<select id="bgMode">
+<option value="solid" selected data-i18n="bgSolid">Плътен цвят</option>
+<option value="gradient" data-i18n="bgGrad">Радиален градиент</option>
+</html>
