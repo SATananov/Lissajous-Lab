@@ -2,6 +2,8 @@
 // -------- Helpers & elements --------
 const $ = (s)=>document.querySelector(s);
 function must(el,id){ if(!el) throw new Error(`Missing #${id} in HTML`); return el; }
+const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+const gcd=(a,b)=>{ while(b){ [a,b]=[b,a%b]; } return Math.abs(a); };
 
 function setup(){
   const els = {
@@ -24,7 +26,7 @@ function setup(){
     canvasWrap: must($('#canvas-wrap'),'canvas-wrap')
   };
 
-  // дайте на всички бутони type="button" (за безопасност)
+  // безопасност: всички бутони да са type="button"
   ['playBtn','pauseBtn','resetBtn','drawOnceBtn','randomBtn','savePNGBtn','savePNGHQBtn','saveSVGBtn','themeBtn','langBtn']
     .forEach(k=>{ if(els[k]) els[k].setAttribute('type','button'); });
 
@@ -62,8 +64,7 @@ function setup(){
   let light=false;
   function applyTheme(){ document.body.classList.toggle('light', light); }
 
-  // -------- Math --------
-  const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+  // -------- Math / points --------
   function lissajousPoints(a,b,A,B,delta,n){
     const T=2*Math.PI, pts=new Array(n);
     for(let i=0;i<n;i++){
@@ -102,16 +103,12 @@ function setup(){
     ctx.fillRect(0,0,w,h);
     const noisePct = +(els.noise?.value||0);
     if(noisePct>0){
-      const alpha = clamp(noisePct/300,0,0.25);
-      const step = 3;
+      const alpha = clamp(noisePct/300,0,0.25), step = 3;
       ctx.save(); ctx.globalAlpha=alpha;
-      for(let y=0;y<h;y+=step){
-        for(let x=0;x<w;x+=step){
-          const v=Math.floor(Math.random()*255);
-          ctx.fillStyle=`rgb(${v},${v},${v})`;
-          ctx.fillRect(x,y,step,step);
-        }
-      }
+      for(let y=0;y<h;y+=step){ for(let x=0;x<w;x+=step){
+        const v=Math.floor(Math.random()*255);
+        ctx.fillStyle=`rgb(${v},${v},${v})`; ctx.fillRect(x,y,step,step);
+      } }
       ctx.restore();
     }
   }
@@ -164,34 +161,95 @@ function setup(){
     if(!lastTs) lastTs=ts;
     const dt=(ts-lastTs)/1000; lastTs=ts; time+=dt;
     if(els.statFps){ const fps=Math.round(1/dt); els.statFps.textContent=`fps: ${isFinite(fps)?fps:0}`; }
-    draw();
-    raf=requestAnimationFrame(loop);
+    draw(); raf=requestAnimationFrame(loop);
   }
   function play(){ if(!isPlaying()){ lastTs=0; raf=requestAnimationFrame(loop); } }
   function pause(){ if(isPlaying()){ cancelAnimationFrame(raf); raf=null; } }
 
-  // -------- Presets / Random --------
-  const PRESETS=[{a:1,b:2},{a:2,b:3},{a:3,b:2},{a:3,b:4},{a:4,b:3},{a:5,b:4},{a:5,b:6},{a:7,b:9},{a:9,b:7},{a:3,b:5,delta:90},{a:7,b:11,delta:45}];
+  // -------- Presets (curated) + MEGA (paginated) --------
+  const CURATED=[{a:1,b:2},{a:2,b:1},{a:2,b:3},{a:3,b:2},{a:3,b:4},{a:4,b:3},{a:5,b:4},{a:4,b:5},{a:5,b:6},{a:6,b:5},{a:3,b:5,delta:90},{a:5,b:3,delta:90},{a:7,b:9},{a:9,b:7},{a:7,b:11,delta:45},{a:11,b:7,delta:45}];
+
+  // build a huge set: a,b in 1..16, gcd(a,b)=1 (за различни фигури), deltas = [0,30,45,60,90]
+  const MAX_N=16, DELTAS=[0,30,45,60,90];
+  const MEGA=[];
+  for(let a=1;a<=MAX_N;a++){
+    for(let b=1;b<=MAX_N;b++){
+      if(gcd(a,b)!==1) continue; // пропускай еквивалентни множители
+      for(const d of DELTAS){
+        MEGA.push({a,b,delta:d});
+      }
+    }
+  }
+  // сортирай по (a+b), после по |a-b| за по-естествен ред
+  MEGA.sort((p,q)=> (p.a+p.b)-(q.a+q.b) || Math.abs(p.a-p.b)-Math.abs(q.a-q.b) || p.a-q.a);
+
+  let megaPage=0, pageSize=60;
+  function chip(p){
+    const btn=document.createElement('button'); btn.className='chip';
+    btn.textContent = `${p.a}:${p.b}${p.delta?` Δ${p.delta}`:''}`;
+    btn.addEventListener('click', ()=>{
+      if(els.a) els.a.value=p.a;
+      if(els.b) els.b.value=p.b;
+      if(els.delta) els.delta.value=p.delta||0;
+      draw(true);
+    });
+    return btn;
+  }
+  function navChip(text, id){
+    const btn=document.createElement('button'); btn.className='chip'; btn.id=id; btn.textContent=text;
+    return btn;
+  }
+  function infoChip(text){
+    const btn=document.createElement('button'); btn.className='chip'; btn.textContent=text; btn.disabled=true;
+    return btn;
+  }
+
   function renderPresets(){
     if(!els.presets) return;
     els.presets.innerHTML='';
-    PRESETS.forEach(p=>{
-      const b=document.createElement('button'); b.className='chip';
-      b.textContent=`${p.a}:${p.b}${p.delta?` (Δ ${p.delta}°)`:''}`;
-      b.addEventListener('click',()=>{ els.a&&(els.a.value=p.a); els.b&&(els.b.value=p.b); els.delta&&(els.delta.value=p.delta||0); draw(true); });
-      els.presets.appendChild(b);
-    });
+
+    // 1) Кратките любими (за бърз старт)
+    CURATED.forEach(p=> els.presets.appendChild(chip(p)));
+
+    // 2) MEGA — пагинация
+    const totalPages = Math.max(1, Math.ceil(MEGA.length / pageSize));
+    megaPage = Math.max(0, Math.min(megaPage, totalPages-1));
+
+    // навигация
+    els.presets.appendChild(infoChip(`MEGA 1..${MAX_N} (${MEGA.length} фигури)`));
+    els.presets.appendChild(navChip('◀', 'megaPrev'));
+    els.presets.appendChild(infoChip(`${megaPage+1}/${totalPages}`));
+    els.presets.appendChild(navChip('▶', 'megaNext'));
+
+    // текуща страница
+    const start = megaPage*pageSize;
+    const end = Math.min(MEGA.length, start+pageSize);
+    for(let i=start;i<end;i++){
+      els.presets.appendChild(chip(MEGA[i]));
+    }
+
+    // слушатели за навигация
+    const prev=$('#megaPrev'), next=$('#megaNext');
+    prev && prev.addEventListener('click', ()=>{ megaPage = (megaPage-1+totalPages)%totalPages; renderPresets(); });
+    next && next.addEventListener('click', ()=>{ megaPage = (megaPage+1)%totalPages; renderPresets(); });
   }
+
+  // допълнително: бързи клавиши за странициране (не променяме UI текста)
+  window.addEventListener('keydown', (e)=>{
+    if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
+    if(!els.presets) return;
+    const totalPages = Math.max(1, Math.ceil(MEGA.length / pageSize));
+    if(e.key==='['){ megaPage=(megaPage-1+totalPages)%totalPages; renderPresets(); }
+    if(e.key===']'){ megaPage=(megaPage+1)%totalPages; renderPresets(); }
+  });
+
   function randomNice(){
-    const cand=[1,2,3,4,5,6,7,8,9,10,11];
-    let a=cand[Math.floor(Math.random()*cand.length)];
-    let b=cand[Math.floor(Math.random()*cand.length)];
-    if(a===b) b=(b%11)+1;
-    if(els.a) els.a.value=a; if(els.b) els.b.value=b;
-    if(els.delta) els.delta.value=[0,0,0,30,45,60,90][Math.floor(Math.random()*7)];
+    // оставяме го семпъл — случайна от MEGA за по-добро разпределение
+    const p = MEGA[Math.floor(Math.random()*MEGA.length)];
+    if(els.a) els.a.value=p.a; if(els.b) els.b.value=p.b; if(els.delta) els.delta.value=p.delta||0;
     if(els.amp) els.amp.value=Math.floor(70+Math.random()*22);
     if(els.width) els.width.value=(1.1+Math.random()*1.1).toFixed(1);
-    if(els.rainbow) els.rainbow.checked = Math.random()<0.5 ? true : false;
+    if(els.rainbow) els.rainbow.checked = Math.random()<0.5;
     if(!els.rainbow?.checked && els.stroke){
       els.stroke.value = `#${Math.floor(Math.random()*0xFFFFFF).toString(16).padStart(6,'0')}`;
     }
@@ -260,51 +318,33 @@ function setup(){
     setTimeout(()=>URL.revokeObjectURL(url),500);
   }
 
-  // -------- Events --------
-  function updateBgFields(){
-    if(els.bg2wrap) els.bg2wrap.style.display = (els.bgMode?.value==='gradient') ? '' : 'none';
-  }
+  // -------- Events / bindings --------
+  function updateBgFields(){ if(els.bg2wrap) els.bg2wrap.style.display = (els.bgMode?.value==='gradient') ? '' : 'none'; }
 
-  const inputEls = [
+  [
     els.a,els.b,els.amp,els.delta,els.omega,els.res,els.width,els.stroke,
     els.bg,els.bg2,els.bgMode,els.noise,els.renderScale,els.rainbow,els.showAxes,els.square,els.blend,els.trail
-  ].filter(Boolean);
-
-  inputEls.forEach(el=>{
+  ].filter(Boolean).forEach(el=>{
     el.addEventListener('input', ()=>{
       if(el===els.square) resizeCanvas(); else draw(true);
       updateBgFields();
     });
   });
 
-  // стандартни слушатели
   els.playBtn && els.playBtn.addEventListener('click', play);
   els.pauseBtn && els.pauseBtn.addEventListener('click', pause);
 
-  // --- FIX: Reset + Draw Once (стабилни функции)
-  function hardReset(){
-    pause();
-    time = 0;
-    lastTs = 0;
-    draw(true);
-  }
-  function drawStep(){
-    pause();
-    if (els.modeAnimate?.checked) {
-      time += 1/30;   // ~33ms напред – една стъпка
-      lastTs = 0;     // стабилен кадър
-    }
-    draw(true);
-  }
+  // FIX: Reset + Draw Once – стабилни
+  function hardReset(){ pause(); time=0; lastTs=0; draw(true); }
+  function drawStep(){ pause(); if(els.modeAnimate?.checked){ time+=1/30; lastTs=0; } draw(true); }
   els.resetBtn && els.resetBtn.addEventListener('click', hardReset);
   els.drawOnceBtn && els.drawOnceBtn.addEventListener('click', drawStep);
 
-  // делегирани слушатели (резервен план, ако горните не се вържат)
-  document.addEventListener('click', (e)=>{
-    const btn = e.target.closest('button');
-    if(!btn) return;
+  // Делегирани (backup) – ако горните по някаква причина не се вържат
+  document.addEventListener('click',(e)=>{
+    const btn=e.target.closest('button'); if(!btn) return;
     if(btn.id==='resetBtn'){ e.preventDefault(); hardReset(); }
-    else if(btn.id==='drawOnceBtn'){ e.preventDefault(); drawStep(); }
+    if(btn.id==='drawOnceBtn'){ e.preventDefault(); drawStep(); }
   });
 
   els.randomBtn && els.randomBtn.addEventListener('click', randomNice);
@@ -327,7 +367,7 @@ function setup(){
   });
 
   // Init
-  renderPresets();
+  renderPresets();           // вече включва MEGA с пагинация
   applyI18n();
   applyTheme();
   updateBgFields();
@@ -335,7 +375,7 @@ function setup(){
   draw(true);
   window.addEventListener('resize', resizeCanvas);
 
-  console.log('✅ Lissajous Lab ready');
+  console.log('✅ Lissajous Lab ready — MEGA presets:', MEGA.length);
 }
 
 // Boot
