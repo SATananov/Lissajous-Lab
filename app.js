@@ -256,12 +256,16 @@ function setup(){
     setTimeout(()=>URL.revokeObjectURL(url),500);
   }
 
-  // -------- UI bindings (safe) --------
+  // -------- Events --------
+  function updateBgFields(){
+    if(els.bg2wrap) els.bg2wrap.style.display = (els.bgMode?.value==='gradient') ? '' : 'none';
+  }
+
   const inputEls = [
     els.a,els.b,els.amp,els.delta,els.omega,els.res,els.width,els.stroke,
     els.bg,els.bg2,els.bgMode,els.noise,els.renderScale,els.rainbow,els.showAxes,els.square,els.blend,els.trail
   ].filter(Boolean);
-  const updateBgFields=()=>{ if(els.bg2wrap) els.bg2wrap.style.display = (els.bgMode?.value==='gradient') ? '' : 'none'; };
+
   inputEls.forEach(el=>{
     el.addEventListener('input', ()=>{
       if(el===els.square) resizeCanvas(); else draw(true);
@@ -271,16 +275,38 @@ function setup(){
 
   els.playBtn && els.playBtn.addEventListener('click', play);
   els.pauseBtn && els.pauseBtn.addEventListener('click', pause);
-  els.resetBtn && els.resetBtn.addEventListener('click', ()=>{ time=0; draw(true); });
-  els.drawOnceBtn && els.drawOnceBtn.addEventListener('click', ()=>{ pause(); draw(true); });
+
+  /* --- FIX: Reset + Draw Once --- */
+  function hardReset(){
+    pause();
+    time = 0;
+    lastTs = 0;
+    draw(true);
+  }
+  function drawStep(){
+    pause();
+    if (els.modeAnimate?.checked) {
+      time += 1/30;   // ~33ms напред – една стъпка
+      lastTs = 0;     // стабилен кадър
+    }
+    draw(true);
+  }
+  els.resetBtn && els.resetBtn.addEventListener('click', hardReset);
+  els.drawOnceBtn && els.drawOnceBtn.addEventListener('click', drawStep);
+
   els.randomBtn && els.randomBtn.addEventListener('click', randomNice);
   els.savePNGBtn && els.savePNGBtn.addEventListener('click', savePNG);
-  els.savePNGHQBtn && els.savePNGHQBtn.addEventListener('click', savePNGHQ);
+
+  // малък quality-of-life фикc: спри анимацията преди Hi-Res
+  els.savePNGHQBtn && els.savePNGHQBtn.addEventListener('click', ()=>{ pause(); savePNGHQ(); });
+
   els.saveSVGBtn && els.saveSVGBtn.addEventListener('click', saveSVG);
 
+  // Theme & Language
   els.themeBtn && els.themeBtn.addEventListener('click', ()=>{ light=!light; applyTheme(); });
   els.langBtn && els.langBtn.addEventListener('click', ()=>{ lang=(lang==='bg'?'en':'bg'); applyI18n(); });
 
+  // Keyboard shortcuts
   window.addEventListener('keydown',(e)=>{
     if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
     if(e.key===' '){ e.preventDefault(); (raf?pause():play()); }
