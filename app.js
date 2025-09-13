@@ -24,6 +24,10 @@ function setup(){
     canvasWrap: must($('#canvas-wrap'),'canvas-wrap')
   };
 
+  // дайте на всички бутони type="button" (за безопасност)
+  ['playBtn','pauseBtn','resetBtn','drawOnceBtn','randomBtn','savePNGBtn','savePNGHQBtn','saveSVGBtn','themeBtn','langBtn']
+    .forEach(k=>{ if(els[k]) els[k].setAttribute('type','button'); });
+
   // -------- I18N --------
   let lang = 'bg';
   const I18N = {
@@ -273,10 +277,11 @@ function setup(){
     });
   });
 
+  // стандартни слушатели
   els.playBtn && els.playBtn.addEventListener('click', play);
   els.pauseBtn && els.pauseBtn.addEventListener('click', pause);
 
-  /* --- FIX: Reset + Draw Once --- */
+  // --- FIX: Reset + Draw Once (стабилни функции)
   function hardReset(){
     pause();
     time = 0;
@@ -294,12 +299,17 @@ function setup(){
   els.resetBtn && els.resetBtn.addEventListener('click', hardReset);
   els.drawOnceBtn && els.drawOnceBtn.addEventListener('click', drawStep);
 
+  // делегирани слушатели (резервен план, ако горните не се вържат)
+  document.addEventListener('click', (e)=>{
+    const btn = e.target.closest('button');
+    if(!btn) return;
+    if(btn.id==='resetBtn'){ e.preventDefault(); hardReset(); }
+    else if(btn.id==='drawOnceBtn'){ e.preventDefault(); drawStep(); }
+  });
+
   els.randomBtn && els.randomBtn.addEventListener('click', randomNice);
   els.savePNGBtn && els.savePNGBtn.addEventListener('click', savePNG);
-
-  // малък quality-of-life фикc: спри анимацията преди Hi-Res
   els.savePNGHQBtn && els.savePNGHQBtn.addEventListener('click', ()=>{ pause(); savePNGHQ(); });
-
   els.saveSVGBtn && els.saveSVGBtn.addEventListener('click', saveSVG);
 
   // Theme & Language
